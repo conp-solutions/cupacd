@@ -18,6 +18,14 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
+/**************************************************************************************************
+This is a patched version of Minisat 2.2. [Marijn Heule, April 17, 2013]
+
+The patch includes:
+- The output of the solver is modified following to the SAT Competition 2013 output requirements
+- The solver optionally emits a DRUP proof in the file speficied in argv[2]
+**************************************************************************************************/
+
 #include <math.h>
 
 #include "mtl/Sort.h"
@@ -136,13 +144,34 @@ bool Solver::addClause_(vec<Lit>& ps)
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
-    Lit p; int i, j;
+
+    vec<Lit>    oc;
+    oc.clear();
+
+    Lit p; int i, j, flag = 0;
+    for (i = j = 0, p = lit_Undef; i < ps.size(); i++) {
+        oc.push(ps[i]);
+        if (value(ps[i]) == l_True || ps[i] == ~p || value(ps[i]) == l_False)
+          flag = 1;
+    }
+
     for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
         if (value(ps[i]) == l_True || ps[i] == ~p)
             return true;
         else if (value(ps[i]) != l_False && ps[i] != p)
             ps[j++] = p = ps[i];
     ps.shrink(i - j);
+
+    if (flag && (output != NULL)) {
+      for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
+        fprintf(output, "%i ", (var(ps[i]) + 1) * (-2 * sign(ps[i]) + 1));
+      fprintf(output, "0\n");
+
+      fprintf(output, "d ");
+      for (i = j = 0, p = lit_Undef; i < oc.size(); i++)
+        fprintf(output, "%i ", (var(oc[i]) + 1) * (-2 * sign(oc[i]) + 1));
+      fprintf(output, "0\n");
+    }
 
     if (ps.size() == 0)
         return ok = false;
@@ -187,6 +216,14 @@ void Solver::detachClause(CRef cr, bool strict) {
 
 void Solver::removeClause(CRef cr) {
     Clause& c = ca[cr];
+
+    if (output != NULL) {
+      fprintf(output, "d ");
+      for (int i = 0; i < c.size(); i++)
+        fprintf(output, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+      fprintf(output, "0\n");
+    }
+
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
@@ -639,6 +676,12 @@ lbool Solver::search(int nof_conflicts)
                 claBumpActivity(ca[cr]);
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
+            if (output != NULL) {
+              for (int i = 0; i < learnt_clause.size(); i++)
+                fprintf(output, "%i " , (var(learnt_clause[i]) + 1) *
+                                  (-2 * sign(learnt_clause[i]) + 1) );
+              fprintf(output, "0\n");
+            }
 
             varDecayActivity();
             claDecayActivity();
@@ -649,7 +692,7 @@ lbool Solver::search(int nof_conflicts)
                 max_learnts             *= learntsize_inc;
 
                 if (verbosity >= 1)
-                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
+                    printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
                            (int)conflicts, 
                            (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
                            (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
@@ -762,10 +805,10 @@ lbool Solver::solve_()
     lbool   status            = l_Undef;
 
     if (verbosity >= 1){
-        printf("============================[ Search Statistics ]==============================\n");
-        printf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
-        printf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
-        printf("===============================================================================\n");
+        printf("c ============================[ Search Statistics ]==============================\n");
+        printf("c | Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
+        printf("c |           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
+        printf("c ===============================================================================\n");
     }
 
     // Search:
@@ -778,7 +821,7 @@ lbool Solver::solve_()
     }
 
     if (verbosity >= 1)
-        printf("===============================================================================\n");
+        printf("c ===============================================================================\n");
 
 
     if (status == l_True){
@@ -917,7 +960,7 @@ void Solver::garbageCollect()
 
     relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n", 
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }
