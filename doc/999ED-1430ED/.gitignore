@@ -1,0 +1,6 @@
+# Latex build files
+*.aux
+*.log
+*.bbl
+*.blg
+*.pdf
