@@ -708,6 +708,8 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 {
     if (!use_simplification) return;
 
+    printf("c SIMP relocAll\n");
+    
     // All occurs lists:
     //
     for (int i = 0; i < nVars(); i++){
@@ -731,10 +733,12 @@ void SimpSolver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
     // is not precise but should avoid some unnecessary reallocations for the new region:
+    assert( ca.size() >= ca.wasted() && "there should be something left in the allocator" );
     ClauseAllocator to(ca.size() - ca.wasted()); 
 
     cleanUpClauses();
     to.extra_clause_field = ca.extra_clause_field; // NOTE: this is important to keep (or lose) the extra fields.
+    // printf ( "c SIMP collect garbage with extra field %d to extra field %d\n", to.extra_clause_field, ca.extra_clause_field );
     relocAll(to);
     Solver::relocAll(to);
     if (verbosity >= 2)

@@ -35,6 +35,7 @@ The patch includes:
 #include "utils/ParseUtils.h"
 #include "utils/Options.h"
 #include "core/Dimacs.h"
+#include "core/PBparser.h"       // to parse PB files
 #include "core/Solver.h"
 
 using namespace Minisat;
@@ -51,6 +52,19 @@ void printStats(Solver& solver)
     printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
     printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
     printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
+    // info about clause removal
+    printf("c nb ReduceDB           : %"PRIu64" (level 0: %"PRIu64" )\n", solver.nbReduceDB, solver.nbReduceDBLnull);
+    printf("c nb removed Clauses    : %"PRIu64"\n",solver.nbRemovedClauses);
+    // stats about PBs
+    printf("c PB: %lld learnt,  %lld removed,  %lld resolved,  %lld toCls,  %lld iToCls, %lld reasons\n", 
+	   solver.learnedPBs, 
+	   solver.removedPBs, 
+	   solver.resolvedPBs, 
+	   solver.turnedLearnedPBintoCLS, 
+	   solver.turnedIntermediatePBintoCLS,
+	   solver.reasonPBs
+	  );    
+    printf("c PB: %d simpReason (of %d) %d simpGlobal %d gcds \n", solver.reasonPBsimplified, solver.pbResolves, solver.globalPBsimplified, solver.gcdReduces );
     if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }
@@ -92,7 +106,8 @@ int main(int argc, char** argv)
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        
+        BoolOption   pbInput("MAIN", "pbfile" ,"Input is a PB file", false);
+	
         parseOptions(argc, argv, true);
 
         Solver S;
@@ -139,7 +154,12 @@ int main(int argc, char** argv)
             printf("c |                                                                             |\n"); }
         
         S.output = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
-        parse_DIMACS(in, S);
+	
+	
+	vec<Lit> minimizationLits; vec<int64_t> minimizationWeights;                               // variables for minimization input
+	bool isMinimization = false;                                                               // usually, the input is not a minimization input
+	if( pbInput ) isMinimization = parse_PBfile(in, S, minimizationLits, minimizationWeights); // read file with PB content (PB competition format)
+        else          parse_DIMACS(in, S);                                                         // read file with DIMACS CNF content
         gzclose(in);
         
         if (S.verbosity > 0){

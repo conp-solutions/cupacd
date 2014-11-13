@@ -61,7 +61,7 @@ static void parse_DIMACS_main(B& in, Solver& S) {
                 // if (clauses > 4000000)
                 //     S.eliminate(true);
             }else{
-                printf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
+                printf("PARSE ERROR (1)! Unexpected char: %c\n", *in), exit(3);
             }
         } else if (*in == 'c' || *in == 'p')
             skipLine(in);

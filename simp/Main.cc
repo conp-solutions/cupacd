@@ -52,6 +52,19 @@ void printStats(Solver& solver)
     printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
     printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
     printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
+    // info about clause removal
+    printf("c nb ReduceDB           : %"PRIu64" (level 0: %"PRIu64" )\n", solver.nbReduceDB, solver.nbReduceDBLnull);
+    printf("c nb removed Clauses    : %"PRIu64"\n", solver.nbRemovedClauses);
+// stats about PBs
+    printf("c PB: %d learnt,  %d removed,  %d resolved,  %d toCls,  %d iToCls, %d reasons\n", 
+	   solver.learnedPBs, 
+	   solver.removedPBs, 
+	   solver.resolvedPBs, 
+	   solver.turnedLearnedPBintoCLS, 
+	   solver.turnedIntermediatePBintoCLS,
+	   solver.reasonPBs
+	  );    
+    printf("c PB: %d simpReason (of %d) %d simpGlobal %d gcds \n", solver.reasonPBsimplified, solver.pbResolves, solver.globalPBsimplified, solver.gcdReduces );
     if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }

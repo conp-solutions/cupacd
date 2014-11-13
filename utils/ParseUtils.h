@@ -86,11 +86,29 @@ static int parseInt(B& in) {
     skipWhitespace(in);
     if      (*in == '-') neg = true, ++in;
     else if (*in == '+') ++in;
-    if (*in < '0' || *in > '9') fprintf(stderr, "PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
+    if (*in < '0' || *in > '9') fprintf(stderr, "PARSE ERROR (3)! Unexpected char: %c\n", *in), exit(3);
     while (*in >= '0' && *in <= '9')
         val = val*10 + (*in - '0'),
         ++in;
-    return neg ? -val : val; }
+    return neg ? -val : val;
+}
+
+template<class B>
+static int64_t parseInt64(B& in) {
+    int64_t val = 0, oldval = 0;
+    bool    neg = false;
+    skipWhitespace(in);
+    if      (*in == '-') neg = true, ++in;
+    else if (*in == '+') ++in;
+    if (*in < '0' || *in > '9') fprintf(stderr, "PARSE ERROR (4)! Unexpected char: %c\n", *in), exit(3);
+    while (*in >= '0' && *in <= '9') {
+      oldval = val;  
+      val = val*10ull + (int64_t)(*in - '0');
+      ++in;
+      if( val < oldval) fprintf(stderr, "PARSE ERROR (5)! Parsed too large integer around digit %c\n", *in), exit(3); // make sure we stay in 64 bits!
+    }
+    return neg ? -val : val;
+}
 
 
 // String matching: in case of a match the input iterator will be advanced the corresponding

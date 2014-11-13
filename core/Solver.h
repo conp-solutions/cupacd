@@ -27,7 +27,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/Options.h"
 #include "core/SolverTypes.h"
 
-
 namespace Minisat {
 
 //=================================================================================================
@@ -53,6 +52,9 @@ public:
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
 
+    bool    addLEConstraint_( vec<Lit>& ps, vec<int64_t>& weights, int64_t k); // Add a PB constraint to the solver without making superflous internal copy. Will
+                                                                               // change the passed vectors.
+    
     // Solving:
     //
     bool    simplify     ();                        // Removes already satisfied clauses.
@@ -141,6 +143,8 @@ public:
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
 
+    uint64_t nbReduceDB, nbReduceDBLnull, nbRemovedClauses; // info about removal
+    
 protected:
 
     // Helper structures:
@@ -222,7 +226,7 @@ protected:
     bool     enqueue          (Lit p, CRef from = CRef_Undef);                         // Test if fact 'p' contradicts current state, enqueue otherwise.
     CRef     propagate        ();                                                      // Perform unit propagation. Returns possibly conflicting clause.
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
-    void     analyze          (CRef confl, vec<Lit>& out_learnt, int& out_btlevel);    // (bt = backtrack)
+    ClauseType analyze        (CRef confl, vec<Lit>& out_learnt, vec<int64_t>& out_weights, int64_t& out_threshold, int& out_btlevel);    // (bt = backtrack) @return type of the learned constraint
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
@@ -271,8 +275,109 @@ protected:
     // Returns a random integer 0 <= x < size. Seed must never be 0.
     static inline int irand(double& seed, int size) {
         return (int)(drand(seed) * size); }
-};
+        
+    // Code for PB constraints
+    //
+    
+    /** find cardnality constraints via a key-clause and unit propagation
+     * @param vectorCardC pointer to cardinality constraint representation vector
+     **/ 
+    void findCardsSemantic( void* vectorCardC );
+    
+    /** extract cardinality constraints from the current solver state, using the irredundant clauses only
+     * @return false, if by unit propagation the formula can be refutet
+     */
+    bool findCards( );
+    
+    /** Attach a PB constraint to watcher lists 
+     *  all literals are watched, so that they can be handled when the positive literal is propagated
+     */
+    void     attachPB     (CRef cr);
+    
+    /** Detach a PB constraint from all its watcher lists.
+     */
+    void     detachPB     (CRef cr, bool strict = false); 
 
+    /** perform conflict analysis and cnovert each PB constraint (on the fly) into a clause for resolution
+     * (bt = backtrack) 
+     * @return type of the learned constraint (is always a clause)
+     */
+    ClauseType analyzePBtoClause(CRef confl, vec<Lit>& out_learnt, vec<int64_t>& out_weights, int64_t& out_threshold, int& out_btlevel);    
+
+    /** perform conflict analysis in case at least one PB constraint is necessary for the generalized resolution process
+     *
+     * continues with learning PBs, and finishes conflict analysis within this routine
+     * yet, no PB constraint minimizatino is performed // TODO add minimization with binary clauses
+     * @return type of the learned constraint (can also be a clause (unit))
+     */
+    ClauseType analyzePB(int& pathC, CRef& confl, Lit& p, int& index, vec< Lit >& out_learnt, vec<Lit>& conflictLevelLiterals, vec<int64_t>& out_weights, int64_t& out_threshold, int& out_btlevel);
+    
+    /** update the weight of literal q during resolving the current conflict PB constraint with another constraint/clause
+     * @param q literal, whose weight has to be updates
+     * @param threhold threshold of the current constraint
+     * @param out_learnt literals in the current/next conflict constraint
+     * @param thisWeight weight of the variable var(q) in the constraint to resolve with
+     * @param varWeight weight of the variable var(q) in the current conflict constraint
+     * @param maxLevelLiterals number of literals in the highest decision level of the constraint
+     * @param maxLevelVar variable on the maximum decision level (var_Undef, if none so far, var_Error, if more than one)
+     * @param maxLevel maximum decision level in the constraint
+     */
+    void updateCurrentPBWithResolveVariable( const Lit q, int64_t& threshold, vec<Lit>& out_learnt, const int64_t thisWeight, const int64_t varWeight, int& maxLevelLiterals, Var& maxLevelVar, int& maxLevel );
+    
+    // PB constraint data structures
+    OccLists<Lit, vec<Watcher>, WatcherDeleted> pbwatches; // full watch list for PB constraints (currently, all literals are watched)
+    vec<int64_t> learnt_weights;                           // vector for the weights of the constraint
+    vec<Lit> learnt_conflictLevelLits;                     // literals that are collected during conflict analysis on the conflict level (the other literals are collected in another vector
+    vec<int64_t>  seenWeights;                             // weights of the literals of the currently learnt PB constraint
+    vec<int32_t>  trailPosition;                           // store for each variable at which position the variable has been enqueued
+    vec<int64_t>  clashingPairs;                           // store weight-pairs of clashing literal pairs for each pair of resolved PB constraints (to calculate the extra clashing sum that is substracted from the threshold)
+    vec<int64_t>  simplifiedWeights;                       // weights of the simplified reason constraint (if resolvent would be satisfied, use these weights, instead of the constraints weights)
+    vec<int64_t>  levelSum;                                // to determine whether a constraint is asserting, cumulate the weights of satisfied literals until a certain level
+    vec<int64_t>  levelMaxWeight;                          // to determine whether a constraint is asserting, store the maximum weight that could be assigned when backjumping to this level
+    vec<int>      presentLevels;                           // store the levels that are present in the current constraint (with satisfied literals)
+    
+    // statistic counters
+public:
+    int reasonPBs,learnedPBs, removedPBs, resolvedPBs, turnedLearnedPBintoCLS, turnedIntermediatePBintoCLS;     // statistic counters
+    int pbResolves,reasonPBsimplified, globalPBsimplified, gcdReduces;                             
+protected:
+    
+    // PB constraint options
+    // options for reasoning
+    bool ogrdbg;                     // print debug output for generalized resolution
+    int usePBtoClause;               // convert PB constraints into clauses during conflict analysis (0=no, 1=trailDependency)
+    bool oRecreateCls;               // if the learned constraint is a clause, use it as a usual clause
+    bool oTurnIntermediatePBtoCLS;   // check during conflict analysis whether the current conflict PB constraint is equivalent to a clause
+    
+    // options for constraint detection
+    bool opt_pb_extractPB;           // extract constraints from the formula
+    bool opt_pb_exitAfterExtraction; // exit after the extracted constraints have been found
+    int32_t fm_debug_out; // level of debug output
+    int64_t opt_pb_fmSearchLimit; // step limit for searching constraints
+    int32_t opt_pb_fmMaxAMO      ;// maximum size of AMO constraints to be detected
+    bool opt_pb_atMostTwo      ; // enable structural detection of at most two constraints
+    bool opt_pb_merge          ; // enable merging AMO constraints to obtain more constraints
+    bool opt_pb_no_AMO_duplicates; // avoid retrieving the same AMO multiple times
+    bool opt_pb_unlimited      ; // ignore step limits
+    bool opt_pb_multiVarAMO    ; // do not allow a literal to participate in multiple AMO constraints 
+    bool opt_pb_multiVarAMT    ; // do not allow a literal to participate in multiple at most two constraints 
+    bool opt_pb_rem_first      ; // order on how to process structural detection on dandidate sets
+    bool opt_pb_atMostOne      ; // enable the structural detection for at most one
+    bool opt_pb_twoProduct     ; // enable the detection of two product encodings of at most one 
+    bool opt_pb_semCard        ; // use semantic detection for constraints
+    bool opt_pb_remDuplicates  ; // remove duplicate at most one constraints after detection
+    bool opt_pb_printCards     ; // print the found cardinality constraints
+    bool opt_pb_printUnits     ; // print unit clauses that have been found so far
+
+// options for semantic search
+    int32_t opt_pb_minCardClauseSize; // minimum clause size to start semantic detection
+    int32_t opt_pb_maxCardClauseSize; // maximum clause size to be considered for detection
+    int32_t opt_pb_maxCardSize     ; // maximum size of found constraints (detection will be aborted for this constraint)
+    int64_t opt_pb_semSearchLimit  ; // step limit for detection
+    bool opt_pb_semDebug ; // enable debug output
+    bool opt_pb_noReduct ; // ignore the unit clauses that are in the formula
+
+};
 
 //=================================================================================================
 // Implementation of inline methods:
@@ -316,7 +421,14 @@ inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
-inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; }
+inline bool     Solver::locked          (const Clause& c) const { 
+  if( !c.isPBconstraint() ) return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; 
+  for( int i = 0 ; i < c.size(); ++ i ) { // check all variables of the constraint!
+    const Var v = var(c.pbLit(i));
+    if( value(c.pbLit(i)) == l_False && reason( v ) != CRef_Undef && ca.lea( reason( v ) ) == &c ) return true;
+  }
+  return false;
+}
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }

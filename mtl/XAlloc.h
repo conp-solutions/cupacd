@@ -24,6 +24,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <errno.h>
 #include <stdlib.h>
 
+#include <sys/mman.h> // use a specialized malloc/free pair that is based on mmap and munmap to use HUGE_PAGES
+#include <cstring>    // for memcpy
+
 namespace Minisat {
 
 //=================================================================================================
@@ -37,6 +40,31 @@ static inline void* xrealloc(void *ptr, size_t size)
         throw OutOfMemoryException();
     }else
         return mem;
+}
+
+/** free memory that has been allocated with @see mmrealloc
+ */
+static inline void mmfree(void* ptr, size_t size)
+{
+  munmap(ptr, size); // use munmap instead of free
+  ptr = 0;
+}
+
+/** alloc (or realloc) memory with the mmap command instead of malloc
+ */
+static inline void* mmrealloc(void *ptr, size_t newsize, size_t oldsize)
+{
+    void* mem ;
+    if( ptr != 0 ) {
+      mem = mmap(0, newsize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS  | MAP_HUGETLB , -1, 0);
+      if( MAP_FAILED == mem ) throw OutOfMemoryException(); // check whether allocation failed
+    } else {
+      mem = mmap(0, newsize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS  | MAP_HUGETLB , -1, 0);
+      if( MAP_FAILED == mem ) throw OutOfMemoryException(); // check whether allocation failed
+      memcpy( mem, ptr, oldsize);                           // copy old content into new memory
+      mmfree( ptr, oldsize );                                        // free old memory
+    }
+    return mem;
 }
 
 //=================================================================================================

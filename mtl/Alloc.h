@@ -24,6 +24,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/XAlloc.h"
 #include "mtl/Vec.h"
 
+#include <cstdio>
+
 namespace Minisat {
 
 //=================================================================================================
@@ -50,6 +52,7 @@ class RegionAllocator
     {
         if (memory != NULL)
             ::free(memory);
+//             Minisat::mmfree(memory, cap);
     }
 
 
@@ -70,6 +73,7 @@ class RegionAllocator
 
     void     moveTo(RegionAllocator& to) {
         if (to.memory != NULL) ::free(to.memory);
+// 	if (to.memory != NULL) Minisat::mmfree(to.memory, cap);
         to.memory = memory;
         to.sz = sz;
         to.cap = cap;
@@ -103,6 +107,7 @@ void RegionAllocator<T>::capacity(uint32_t min_cap)
 
     assert(cap > 0);
     memory = (T*)xrealloc(memory, sizeof(T)*cap);
+//     memory = (T*)mmrealloc(memory, sizeof(T)*cap, sizeof(T)*prev_cap);
 }
 
 
@@ -110,7 +115,7 @@ template<class T>
 typename RegionAllocator<T>::Ref
 RegionAllocator<T>::alloc(int size)
 { 
-    // printf("ALLOC called (this = %p, size = %d)\n", this, size); fflush(stdout);
+    // printf("ALLOC called (this = %p, size = %d)\n", this, size); fflush(stdout); 
     assert(size > 0);
     capacity(sz + size);
 

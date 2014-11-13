@@ -32,6 +32,7 @@ LFLAGS    += -lz
 s:	$(EXEC)
 p:	$(EXEC)_profile
 d:	$(EXEC)_debug
+ds:	$(EXEC)_debug_static
 r:	$(EXEC)_release
 rs:	$(EXEC)_static
 
@@ -50,6 +51,7 @@ libr:	lib$(LIB)_release.a
 $(EXEC):		LFLAGS += -g
 $(EXEC)_profile:	LFLAGS += -g -pg
 $(EXEC)_debug:		LFLAGS += -g
+$(EXEC)_debug_static:		LFLAGS += -g --static
 #$(EXEC)_release:	LFLAGS += ...
 $(EXEC)_static:		LFLAGS += --static
 
@@ -57,6 +59,7 @@ $(EXEC)_static:		LFLAGS += --static
 $(EXEC):		$(COBJS)
 $(EXEC)_profile:	$(PCOBJS)
 $(EXEC)_debug:		$(DCOBJS)
+$(EXEC)_debug_static:		$(DCOBJS)
 $(EXEC)_release:	$(RCOBJS)
 $(EXEC)_static:		$(RCOBJS)
 
@@ -72,7 +75,7 @@ lib$(LIB)_release.a:	$(filter-out */Main.or, $(RCOBJS))
 	@$(CXX) $(CFLAGS) -c -o $@ $<
 
 ## Linking rules (standard/profile/debug/release)
-$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:
+$(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_debug_static $(EXEC)_release $(EXEC)_static:
 	@echo Linking: "$@ ( $(foreach f,$^,$(subst $(MROOT)/,,$f)) )"
 	@$(CXX) $^ $(LFLAGS) -o $@
 
@@ -88,7 +91,7 @@ libs libp libd libr:
 
 ## Clean rule
 clean:
-	@rm -f $(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static \
+	@rm -f $(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_debug_static $(EXEC)_release $(EXEC)_static \
 	  $(COBJS) $(PCOBJS) $(DCOBJS) $(RCOBJS) *.core depend.mk 
 
 ## Make dependencies
