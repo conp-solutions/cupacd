@@ -203,6 +203,7 @@ class Clause {
 public:
     void calcAbstraction() {
         assert(header.has_extra);
+	assert(header.is_pb == 0 && "should not calculate the abstraction of PB constraints" );
         uint32_t abstraction = 0;
 	if( header.is_pb ) {
 	  for (int i = 0; i < size(); i++)
@@ -742,7 +743,7 @@ inline void BIG::create(ClauseAllocator& ca, uint32_t nVars, vec< CRef >& list)
   // memset(sizes,0, sizeof(Lit*) * nVars * 2 );
   // set the pointers to the right location and clear the size
   sum = 0 ;
-  for ( int i = 0 ; i < nVars * 2; ++ i )
+  for ( uint32_t i = 0 ; i < nVars * 2; ++ i )
   {
     big[i] = &(storage[sum]);
     sum += sizes[i];
@@ -785,7 +786,7 @@ inline void BIG::create(ClauseAllocator& ca, uint32_t nVars, vec< CRef >& list1,
   // memset(sizes,0, sizeof(Lit*) * nVars * 2 );
   // set the pointers to the right location and clear the size
   sum = 0 ;
-  for ( int i = 0 ; i < nVars * 2; ++ i )
+  for ( uint32_t i = 0 ; i < nVars * 2; ++ i )
   {
     big[i] = &(storage[sum]);
     sum += sizes[i];
@@ -831,7 +832,7 @@ inline void BIG::recreate( ClauseAllocator& ca, uint32_t nVars, vec< CRef >& lis
   
   // set the pointers to the right location and clear the size
   sum = 0 ;
-  for ( int i = 0 ; i < nVars * 2; ++ i )
+  for ( uint32_t i = 0 ; i < nVars * 2; ++ i )
   {
     big[i] = &(storage[sum]);
     sum += sizes[i];
@@ -876,7 +877,7 @@ inline void BIG::recreate( ClauseAllocator& ca, uint32_t nVars, vec< CRef >& lis
   
   // set the pointers to the right location and clear the size
   sum = 0 ;
-  for ( int i = 0 ; i < nVars * 2; ++ i )
+  for ( uint32_t i = 0 ; i < nVars * 2; ++ i )
   {
     big[i] = &(storage[sum]);
     sum += sizes[i];
@@ -900,7 +901,7 @@ inline void BIG::recreate( ClauseAllocator& ca, uint32_t nVars, vec< CRef >& lis
 
 inline void BIG::removeDuplicateEdges(const uint32_t nVars)
 {
-  const uint32_t maxVar = duringCreationVariables < nVars ? duringCreationVariables : nVars; // use only known variables
+  const int maxVar = duringCreationVariables < nVars ? duringCreationVariables : nVars; // use only known variables
   for( Var v = 0 ; v < maxVar; ++v ) {
     for( int p = 0 ;p < 2 ; ++ p ) {
       const Lit l = mkLit(v,p==1);

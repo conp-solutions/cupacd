@@ -611,6 +611,15 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     else if (!use_simplification)
         return true;
 
+    
+    std::cerr << "c print full formula with details" << std::endl;
+    for( int i = 0 ; i<clauses.size(); ++i ) {
+      std::cerr << "c [" << i << "] " << ca[ clauses[i] ] << " with extra: " << ca[clauses[i]].has_extra() << " learnt: " << ca[clauses[i]].learnt();
+      if( ca[clauses[i]].has_extra() && !ca[clauses[i]].learnt() ) std::cerr << " abstr: " << ca[clauses[i]].abstraction() << std::endl;
+      else std::cerr << std::endl;
+    }
+    
+    
     // Main simplification loop:
     //
     while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){

@@ -151,13 +151,13 @@ Solver::Solver() :
   
   , pbwatches (WatcherDeleted(ca))
   
-  , pbResolves(0)
   , reasonPBs(0)
   , learnedPBs(0)
   , removedPBs(0)
   , resolvedPBs(0)
   , turnedLearnedPBintoCLS(0)
   , turnedIntermediatePBintoCLS(0)
+  , pbResolves(0)
   , reasonPBsimplified(0)
   , globalPBsimplified(0)
   , gcdReduces(0)
