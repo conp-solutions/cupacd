@@ -34,7 +34,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <iostream> // used for default display literals, clauses, ... into streams
 #include <vector>   // used for the MarkArray class
 
-#define PBWsize 3   // a PB weight and literal pair should be stored in every 3 literals (however, 4 results in much faster accesses)
+#define PBWsize 4   // a PB weight and literal pair should be stored in every 3 literals (however, 4 results in much faster accesses)
 
 
 namespace Minisat {
@@ -155,10 +155,11 @@ class Clause {
             data[i].lit = ps[i];
 
         if (header.has_extra){
-            if (header.learnt)
-                data[header.size].act = 0; // its not a PB constraint, so everything is fine
-            else 
-                calcAbstraction(); }
+            if (header.learnt) 
+	      data[ header.is_pb ? header.size * PBWsize + PBWsize : header.size].act = 0; // its not a PB constraint, so everything is fine otherwise, use the right distance
+	    else 
+              calcAbstraction(); 
+	}
     }
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
@@ -193,6 +194,7 @@ class Clause {
 	}
 
 	// enable the constraint to have an activity
+	assert( isPBconstraint() && "use sizes of PB constraint only for PB constraints" );
         if (header.has_extra){
             if (header.learnt)
                 data[header.size* PBWsize + PBWsize ].act = 0; 
@@ -203,7 +205,6 @@ class Clause {
 public:
     void calcAbstraction() {
         assert(header.has_extra);
-	assert(header.is_pb == 0 && "should not calculate the abstraction of PB constraints" );
         uint32_t abstraction = 0;
 	if( header.is_pb ) {
 	  for (int i = 0; i < size(); i++)
@@ -212,7 +213,8 @@ public:
 	  for (int i = 0; i < size(); i++)
 	      abstraction |= 1 << (var( pbLit(i) ) & 31);
 	}
-        data[header.is_pb ? header.size * PBWsize + PBWsize : header.size].abs = abstraction;  }
+        data[header.is_pb ? header.size * PBWsize + PBWsize : header.size].abs = abstraction;
+    }
 
 
     int          size        ()      const   { return header.size; }
@@ -314,10 +316,14 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
         bool use_extra = learnt | extra_clause_field;
 
 	assert( ps.size() > 0 && "only clauses with an actual size should be alocated" );
-	// std::cerr << "c called alloc for clause " << ps << " with parameter " << clauseWord32Size(ps.size() , use_extra) << " and extra: " << use_extra << std::endl;
+// 	std::cerr << "c called alloc for clause " << ps << " with parameter " << clauseWord32Size(ps.size() , use_extra) << " and extra: " << use_extra << " and learnt: " << learnt << std::endl;
 	
         CRef cid = RegionAllocator<uint32_t>::alloc(clauseWord32Size(ps.size(), use_extra));
         new (lea(cid)) Clause(ps, use_extra, learnt);
+
+// 	std::cerr << "c created clause " << this->operator[](cid) << " with extra: " << this->operator[](cid).has_extra() << " learnt: " << this->operator[](cid).learnt();
+// 	if( this->operator[](cid).has_extra() && !this->operator[](cid).learnt() ) std::cerr << " abstr: " << this->operator[](cid).abstraction() << std::endl;
+// 	else std::cerr << std::endl;
 
         return cid;
     }

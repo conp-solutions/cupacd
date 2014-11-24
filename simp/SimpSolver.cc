@@ -612,12 +612,12 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         return true;
 
     
-    std::cerr << "c print full formula with details" << std::endl;
-    for( int i = 0 ; i<clauses.size(); ++i ) {
-      std::cerr << "c [" << i << "] " << ca[ clauses[i] ] << " with extra: " << ca[clauses[i]].has_extra() << " learnt: " << ca[clauses[i]].learnt();
-      if( ca[clauses[i]].has_extra() && !ca[clauses[i]].learnt() ) std::cerr << " abstr: " << ca[clauses[i]].abstraction() << std::endl;
-      else std::cerr << std::endl;
-    }
+//     std::cerr << "c print full formula with details" << std::endl;
+//     for( int i = 0 ; i<clauses.size(); ++i ) {
+//       std::cerr << "c [" << i << "] " << ca[ clauses[i] ] << " with extra: " << ca[clauses[i]].has_extra() << " learnt: " << ca[clauses[i]].learnt();
+//       if( ca[clauses[i]].has_extra() && !ca[clauses[i]].learnt() ) std::cerr << " abstr: " << ca[clauses[i]].abstraction() << std::endl;
+//       else std::cerr << std::endl;
+//     }
     
     
     // Main simplification loop:
@@ -717,7 +717,7 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 {
     if (!use_simplification) return;
 
-    printf("c SIMP relocAll\n");
+//     printf("c SIMP relocAll\n");
     
     // All occurs lists:
     //

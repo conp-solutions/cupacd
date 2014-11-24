@@ -473,6 +473,13 @@ void Solver::removeClause(CRef cr) {
       assert( decisionLevel() == 0 && "only remove reasons for literals on level 0!" );
     } else if ( c.isPBconstraint() ) {
       removedPBs ++;
+      
+//       cerr << "c remvoe constraint[" << cr << "]: " << c << endl;
+//       for( int i = 0 ; i < c.size(); ++ i ) {
+// 	const Lit l = c.pbLit(i);
+// 	cerr << "c reason c[" << i << "]( " << l << "): " << reason( var(l) ) << endl;
+//       }
+      
       // check if the constraint would have been locked
       for( int i = 0 ; i < c.size(); ++ i ) { // check all variables of the constraint!
 	const Var v = var(c.pbLit(i));
@@ -814,6 +821,7 @@ CRef Solver::propagate()
     CRef    confl     = CRef_Undef;
     int     num_props = 0;
     watches.cleanAll();
+    pbwatches.cleanAll();
 
     while (qhead < trail.size()){
         const Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
@@ -1730,6 +1738,8 @@ ClauseType Solver::analyzePB(int& pathC, CRef& confl, Lit& p, int& index, vec< L
         assert(confl != CRef_Undef && "cannot resolve on a decision literal"); 
         Clause& c = ca[confl];                    // next constraint to be considered
 	int64_t thisDiff = 0;                     // diff of the constraint to resolve with, is initialized in the first iteration for a PB constraint
+	
+// 	cerr << "c resolve with " << confl << " at level " << level( var(p) ) << endl;
 	
 	scaleConstraint = (p==lit_Undef ? 1 : seenWeights[ var(p) ]);                // factor with which to scale the currently learned constraint (is the weight of the variable to be resolved)
 	scaleConstraint = scaleConstraint < 0 ? -scaleConstraint : scaleConstraint;  // the factor has to be positive

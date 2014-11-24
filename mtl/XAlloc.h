@@ -42,6 +42,7 @@ static inline void* xrealloc(void *ptr, size_t size)
         return mem;
 }
 
+#if 0
 /** free memory that has been allocated with @see mmrealloc
  */
 static inline void mmfree(void* ptr, size_t size)
@@ -66,6 +67,8 @@ static inline void* mmrealloc(void *ptr, size_t newsize, size_t oldsize)
     }
     return mem;
 }
+
+#endif
 
 //=================================================================================================
 }
