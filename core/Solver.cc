@@ -1411,6 +1411,7 @@ void Solver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < 2; i++) { // consider all watch lists
       OccLists<Lit, vec<Watcher>, WatcherDeleted>& watchLists = (i==0 ? watches : pbwatches); 
       watchLists.cleanAll();
+      pbwatches.cleanAll();
       for (int v = 0; v < nVars(); v++)
         for (int s = 0; s < 2; s++){
             Lit p = mkLit(v, s);
